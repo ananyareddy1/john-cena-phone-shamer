@@ -76,7 +76,90 @@
     h1 {
       font-size: 3rem;
     }
-    
+
+    /* Prompt Modal Styles */
+    .prompt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .prompt-frame {
+      width: 19.9375rem;
+      height: 8.125rem;
+      flex-shrink: 0;
+      border-radius: 1.0625rem;
+      border: 1px solid #000;
+      background: #F9F5F5;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .prompt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+
+    .prompt-text {
+      width: 13.5625rem;
+      height: 0.9375rem;
+      flex-shrink: 0;
+      color: #000;
+      text-align: center;
+      font-family: "Press Start 2P", monospace;
+      font-size: 0.75rem;
+      font-style: normal;
+      font-weight: 400;
+      line-height: normal;
+    }
+
+    .close-button {
+      width: 0.75rem;
+      height: 0.75rem;
+      flex-shrink: 0;
+      stroke-width: 2px;
+      stroke: #000;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .prompt-input {
+      width: 16.25rem;
+      height: 2.125rem;
+      flex-shrink: 0;
+      border-radius: 1.0625rem;
+      border: 1px solid #000;
+      background: #FF91EB;
+      padding: 0.5rem 1rem;
+      font-family: "Press Start 2P", monospace;
+      font-size: 0.5rem;
+      outline: none;
+    }
+
+    .prompt-input::placeholder {
+      color: #000;
+      opacity: 0.7;
+    }
+
+    .hidden {
+      display: none;
+    }
   
   </style>
 </head>
@@ -97,13 +180,33 @@
   <!-- John Cena Audio -->
   <audio id="john-cena" src="Areyousurejohncena.mp4" preload="auto"></audio>
 
+  <!-- Phone Detection Prompt -->
+  <div id="prompt-overlay" class="prompt-overlay hidden">
+    <div class="prompt-frame">
+      <div class="prompt-header">
+        <div class="prompt-text">PHONE DETECTED!</div>
+        <button class="close-button" id="close-prompt">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M13 1L1 13M1 1L13 13" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <input type="text" class="prompt-input" id="user-input" placeholder="Enter your name..." />
+    </div>
+  </div>
+
   <script>
     window.onload = async () => {
   const video = document.getElementById('webcam');
   const audio = document.getElementById('john-cena');
   const status = document.getElementById('status');
+  const promptOverlay = document.getElementById('prompt-overlay');
+  const closePrompt = document.getElementById('close-prompt');
+  const userInput = document.getElementById('user-input');
 
   let phoneInFrame = false;
+  let promptShown = false;
+  let detectionData = [];
 
   // Setup webcam
   try {
@@ -117,19 +220,65 @@
   // Load COCO-SSD model
   const model = await cocoSsd.load();
 
+  // Show prompt when phone is detected
+  function showPrompt() {
+    if (!promptShown) {
+      promptShown = true;
+      promptOverlay.classList.remove('hidden');
+      audio.play();
+      userInput.focus();
+    }
+  }
+
+  // Hide prompt and store data
+  function hidePrompt() {
+    const inputValue = userInput.value.trim();
+    if (inputValue) {
+      const dataEntry = {
+        timestamp: new Date().toISOString(),
+        userInput: inputValue,
+        phoneDetected: true
+      };
+      detectionData.push(dataEntry);
+      console.log('Stored data:', dataEntry);
+      console.log('All stored data:', detectionData);
+    }
+    
+    promptOverlay.classList.add('hidden');
+    userInput.value = '';
+    promptShown = false;
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  // Close prompt event listener
+  closePrompt.addEventListener('click', hidePrompt);
+
+  // Enter key to submit
+  userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      hidePrompt();
+    }
+  });
+
+  // Click outside to close
+  promptOverlay.addEventListener('click', (e) => {
+    if (e.target === promptOverlay) {
+      hidePrompt();
+    }
+  });
+
   async function detectFrame() {
     if (video.readyState === 4) {
       const predictions = await model.detect(video);
-      phoneInFrame = predictions.some(p => p.class === 'cell phone');
+      const currentPhoneInFrame = predictions.some(p => p.class === 'cell phone');
 
-      if (phoneInFrame) {
-        if (audio.paused) {
-          audio.play();
-        }
-      } else {
-        audio.pause();
-        audio.currentTime = 0; // reset to start
+      // Only show prompt when phone first enters frame
+      if (currentPhoneInFrame && !phoneInFrame && !promptShown) {
+        showPrompt();
       }
+
+      phoneInFrame = currentPhoneInFrame;
     }
     requestAnimationFrame(detectFrame);
   }
