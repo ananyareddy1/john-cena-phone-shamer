@@ -177,7 +177,6 @@
        style="height:1em; width:auto; vertical-align:middle; margin-right:0.3em;" />
        This website plays sound. Try picking up your phone on camera.</p>
 
-  <button onclick="testPrompt()" style="margin: 10px; padding: 10px; background: #FF91EB; border: 1px solid #000; border-radius: 5px; cursor: pointer;">Test Prompt (Debug)</button>
  
 
   <!-- John Cena Audio -->
@@ -276,14 +275,8 @@
       const predictions = await model.detect(video);
       const currentPhoneInFrame = predictions.some(p => p.class === 'cell phone');
 
-      // Debug logging
-      if (currentPhoneInFrame) {
-        console.log('Phone detected!', { phoneInFrame, promptShown });
-      }
-
       // Only show prompt when phone first enters frame
       if (currentPhoneInFrame && !phoneInFrame && !promptShown) {
-        console.log('Showing prompt...');
         showPrompt();
       }
 
@@ -294,11 +287,6 @@
 
   detectFrame();
 
-  // Test function for debugging
-  window.testPrompt = function() {
-    console.log('Testing prompt...');
-    showPrompt();
-  };
 };
 
   </script>
